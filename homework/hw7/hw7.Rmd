@@ -1,0 +1,191 @@
+---
+title: "Homework 7"
+author: "Zinnia Nie"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, fig.height = 4)
+library(tidyverse)
+library(lubridate)
+source("../../scripts/ggprob.R")
+```
+
+
+## Problems
+
+The *dugong.csv* data set contains data on 27 dugongs, which are marine mammals.  Since we cannot ask a dugong how old it is (well, we can ask, but we wouldn't likely get a clear answer!), its age needs to be estimated by other factors.  The variables in *dugong.csv* are length (in meters) and age (in years).
+
+Suppose we are interested in using the length of a dugong to predict its age.  We can fit a regression model for this!
+
+Credit:  The *dugong.csv* file is from Data8 at UC-Berkeley.
+
+
+### 1
+
+- Read in the *dugong.csv* data set.
+-  Create a scatter plot with length on the x-axis and age on the y-axis; be sure to add descriptive axis labels and a title.
+-  Using `geom_smooth()` add the least-squares line to your plot and include the shaded band.
+
+```{r}
+# insert code here
+dugong = read_csv("../../data/dugong.csv")
+
+ggplot(data = dugong, mapping=aes(x=Length, y=Age)) +
+  geom_point() +
+  geom_smooth(method='lm') +
+  xlab("Length (meters)") +
+  ylab("Age (years)") +
+  ggtitle("Age vs Length in dugongs")
+```
+
+
+
+### 2
+
+- Using the dugong data, estimate the slope and intercept of a least squares linear model fit to age as the response variable and length as the explanatory variable.
+- Compute the estimate slope and intercept using the regression formulas from lecture, and also using the `lm()` function.
+
+How do the estimates using the two methods compare?
+
+```{r}
+# insert code here
+xbar = mean(dugong$Length)
+ybar = mean(dugong$Age)
+sx = sd(dugong$Length)
+sy = sd(dugong$Age)
+r = cor(dugong$Length, dugong$Age)
+
+b1 = r * sy/sx # b1: slope
+b0 = ybar - (b1*xbar) # b0: intercept
+
+b0
+b1
+
+dugong_lm = lm(Age ~ Length, data = dugong)
+summary(dugong_lm)
+```
+
+> The estimates with the two methods is the same, $\beta_0 = -44.567$ and $\beta_1 = 23.772$
+
+
+
+### 3
+
+- Re-create the graphic from question 1.
+- Add the regression model fit from the previous question (using the `lm()` method) to the plot in green. You may find `geom_abline()` useful for adding your fit model to the plot; run `?geom_abline` for more information on the input arguments.  (This line should cover the line produced from `geom_smooth()`.)
+- Using this estimated model, predict the age of a dugong that is 2.5 meters long.
+-  Plot this predicted value as a red point on your plot.
+
+```{r}
+# insert code here
+-44.567 + 23.772*2.5
+
+ggplot(data = dugong, mapping=aes(x=Length, y=Age)) +
+  geom_point() +
+  geom_smooth(method='lm') +
+  geom_abline(slope=23.772, intercept=-44.567, color="green") +
+  geom_point(aes(x=2.5, y=-44.567 + 23.772*2.5), colour="red") +
+  xlab("Length (meters)") +
+  ylab("Age (years)") +
+  ggtitle("Age vs Length in dugongs")
+```
+
+
+
+### 4
+
+#### 4A
+
+Display a plot of the residuals from your estimated model versus dugong length.
+
+- Add to the plot a horizontal line at `y = 0`.
+- In addition, use `geom_smooth()` to add a smooth curve to the residual plot to help identify any patterns.
+
+```{r}
+# insert code here
+dugong_resid = dugong %>% mutate(residual = resid(dugong_lm))
+
+ggplot(data=dugong_resid, mapping = aes(x=Length, y=residual)) +
+  geom_point() +
+  xlab("Length (meters") +
+  ylab("Residuals") +
+  geom_hline(aes(yintercept=0), color="red", linetype = "dashed") +
+  geom_smooth(se=FALSE) + 
+  ggtitle("Residuals of the dugong data with a least-squares regression line")
+```
+
+
+#### 4B
+
+Does the residual plot resemble random scatter around the horizontal line, or are there patterns in the residual plot which suggest the linear model may not be appropriate?
+
+> The residual plot does not have a random pattern around the line at y=0. The points underneath the line are closer to the line while the points above the line go farther away. Not only that, the smooth curve that represents the trend of the points shows an obvious curve. Therefore a linear model might not be appropriate to estimate dugong age based on its length. 
+
+
+
+<br/>
+
+### 5 (OPTIONAL, i.e. will NOT be graded)
+
+#### 5A
+
+Compute a 95% confidence interval for the expected value of the age of dugongs that have a length of 2.5 meters, E(y|x=2.5).  Re-create the graphic from question 3, and add a representation of this confidence interval as a vertical blue segment.
+
+```{r}
+s_yhat <- function(x){
+  ## x = radius on original scale
+  n <- nrow(dugong)
+  syy <- sum(dugong_resid$residual^2)/(n-2)
+  mean_logx <-mean(log10(dugong$Length))
+  sxx <- sum((log10(dugong$Length) - mean_logx)^2)
+  out <- sqrt(syy*(1/n + (log10(x)-mean_logx)^2/sxx))
+  return(out)
+}
+
+pred=14.863
+pred + c(-1, 1) * qt(.975, nrow(dugong)-2)*s_yhat(2.5)
+
+ggplot(data = dugong, mapping=aes(x=Length, y=Age)) +
+  geom_point() +
+  geom_smooth(method='lm') +
+  geom_abline(slope=23.772, intercept=-44.567, color="green") +
+  geom_segment(x = 2.5, y = 12.77518, xend = 2.5, yend = 16.95082, color = "blue") + 
+  geom_point(aes(x=2.5, y=14.863), colour="red") +
+  xlab("Length (meters)") +
+  ylab("Age (years)") +
+  ggtitle("Age vs Length in dugongs", subtitle = "With confidence interval for a length of 2.5 meters")
+
+```
+
+
+#### 5B
+
+Compute a 95% *prediction* interval for the age of a future Dugong measured to have a length of 2.5 meters, Y|x=2.5.  Re-create the graphic from question 4, and add a representation of this prediction interval as a vertical dotted black segment.
+
+```{r}
+s_yhatstar <- function(x){
+  ## x = radius on original scale
+  n <- nrow(dugong)
+  syy <- sum(dugong_resid$residual^2)/(n-2)
+  mean_logx <-mean(log10(dugong$Length))
+  sxx <- sum((log10(dugong$Length) - mean_logx)^2)
+  out <- sqrt(syy*(1 + 1/n + (log10(x)-mean_logx)^2/sxx))
+  return(out)
+}
+
+pred + c(-1, 1) * qt(.975, nrow(dugong)-2)*s_yhatstar(2.5)
+
+ggplot(data = dugong, mapping=aes(x=Length, y=Age)) +
+  geom_point() +
+  geom_smooth(method='lm') +
+  geom_abline(slope=23.772, intercept=-44.567, color="green") +
+  geom_segment(x = 2.5, y = 5.40206, xend = 2.5, yend = 24.32394, color = "black", linetype="dotted") + 
+  geom_segment(x = 2.5, y = 12.77518, xend = 2.5, yend = 16.95082, color = "blue") + 
+  geom_point(aes(x=2.5, y=14.863), colour="red") +
+  xlab("Length (meters)") +
+  ylab("Age (years)") +
+  ggtitle("Age vs Length in dugongs", subtitle = "With prediction interval for a length of 2.5 meters")
+```
+
+

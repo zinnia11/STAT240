@@ -1,0 +1,297 @@
+---
+title: "STAT 240 Discussion 3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(lubridate)
+```
+
+### Group 311:1
+
+
+### Members Present
+
+Abigail Gandrud,
+Alexandra White,
+Akshay Joshi,
+**Zinnia Nie**
+
+### Members Absent
+
+N/a
+
+
+
+## Section A: tidyr
+
+#### Overview
+
+The data are from an experiment conducted by UW-Madison researchers interested in finding which combinations of attractants were most effective at attracting wasps during harvest time at a local vineyard. The data were collected over a five week period of time; however, most wasps were present in two of these weeks, the week of the harvest and the following week. Wasps are pests that bother the people harvesting the grapes and damage the grapes themselves. The hope is that using attractants to capture wasps will improve the harvest conditions.
+
+There were three attractants used in all possible combinations (three individual attractants, three possible combinations of pairs, one combination with all three used), plus a control setting with no attractants; this results in a total of *eight* treatments -- from Control (no attractants) to using all three together. There are four different species of wasps that were collected.
+
+During each week of the experiment there were 40 traps laid out in different locations of the vineyard. The vineyard was partitioned into 5 blocks (labeled A through E) and each treatment was used in a single trap within each block. The numbers of wasps collected by traps was counted each week.
+
+*In this designed experiment, each week and each block should contain each treatment exactly once. However, there is an error. The questions will lead you to find the mistake.*
+
+#### Data
+
+The data set is in an Excel File. You will use `read_excel()` from the package `readxl` read in the data. The data has an error. You will use functions from `tidyr` to identify where the error is.
+
+```{r read-data, include=FALSE}
+library(readxl)
+wasps = read_excel("../../data/wasps-data.xlsx") %>%
+   rename(date = `Date Collected`,
+         block = Block,
+         position = Number,
+         lure = Lure,
+         maculifrons = `V. Maculifrons`,
+         flavopilosa = `V. Flavopilosa`,
+         germanica = `V. Germanica`,
+         vidua = `V. Vidua`) %>%
+  mutate(date = as_date(date)) %>%
+  mutate(week = as.integer(as.factor(date))) %>%
+  mutate(two_mb = as.integer(str_detect(lure,"2MB"))) %>%
+  mutate(aa = as.integer(str_detect(lure,"AA"))) %>%
+  mutate(ib = as.integer(str_detect(lure,"IB"))) %>%
+  select(date,week,everything())
+
+head(wasps,10)
+```
+
+
+
+### 1
+
+#### 1A
+
+The function `count(x)` is a shortcut for `group_by(x) %>% summarize(n=n())` where `x` is one or more columns.
+Separately count the number of observations for each `date`, `block`, `position`, and `lure` (i.e., have a different count summary for each of these variables).
+
+Which of these variables has an error? (Since each value for each variable should be equal, this question is asking which of the variables has values that do not appear as equal counts? Which values appear too often or too infrequently?)
+
+```{r}
+wasps %>% count(date) 
+wasps %>% count(block) 
+wasps %>% count(position) 
+wasps %>% count(lure) 
+
+```
+
+In the **'block'** column, D has 39 observations while E has 41 observations, so there is an error for this variable. Also in the **'position'** column, 2 has 24 observations and 6 has 26 observations, so there is an error in this column as well. 
+
+
+#### 1B
+
+> In the previous question, we found that an error exists.  For this question, *briefly* explain what the following code does and what this means in terms of what error is in the data.
+
+```{r}
+table2 <- wasps %>%
+  count(week,block,position)
+
+table2
+
+dim(table2) # Consider how many rows there should be.
+
+table2 %>%
+  filter(n!=1)
+```
+
+dim(table2) show the dimensions of the table with the counts of the observations for each week, block, and position. This table should have 200 rows as there are 40 traps in 5 blocks each. Then, by filtering for a row that doesn't have only 1 observation, we can find where the duplicate entry occured.
+
+
+### 2
+
+The previous table (`table2`) would have 200 rows if every week had exactly one observation per week, block, and position.
+
+We can use `pivot_wider()` to find which observation is missing by first filtering the table to include only the week where the missing data is (see previous question's results to determine the week), then spreading the position values across the columns, and having the counts values (`n`) be the values in the table.
+
+To do this, replace the `XXX`'s in the code below.  (You will need to un-comment the code first.)
+
+```{r}
+table2 %>%
+   filter(week==2) %>%
+   pivot_wider(id_cols=block, names_from=position, values_from=n, values_fill=0)
+```
+
+
+
+### 3
+
+Explain what each step of the following block of code does by filling in the missing information indicated by the XXX in the text below the chunk.
+
+```{r}
+wasps %>%
+  count(week,block,position) %>%
+  pivot_wider(id_cols=c(week,position), names_from=block,values_from=n, values_fill=0) %>%
+  pivot_longer(cols=A:E,names_to="block", values_to="n") %>%
+  filter(n != 1)
+```
+
+1. After `count()`, the data has **199** rows.
+2. If the data was valid and matched the experimental design, then every value in the column `n` would be **1**.
+3. The argument `values_fill=0` places a 0 in the combination of week, block, and position that is **missing** in the data set.
+4. After `pivot_longer()`, the data set has **200** rows.
+5. After `pivot_longer()`, the row with a value of **2** in the `n` column contains the week, block, and position that appears too often in the data set.
+6. After `pivot_longer()`, the row with a value of **0** in the `n` column contains the week, block, and position that is missing in the data set.
+
+
+
+### 4
+
+#### 4A
+
+> Which block/lure combinations do not appear exactly 1 time in a week?
+
+Combine what you learned in the previous exercise and from the output of the code below to determine which week/lure/block/position is in the data set and should not be and which is missing from the data set and should be.
+
+Replace the XXX's in the text below to specify the two requested observations:
+
+The observation where week=**2**, lure=**Control**, block=**E**, and position=**6** is in the data set and should not be.
+
+The observation where week=**2**, lure=**Control**, block=**D**, and position=**2** is missing from the data set.
+
+```{r}
+wasps %>%
+  select(week,block,lure) %>%
+  group_by(week) %>%
+  count(block,lure) %>%
+  pivot_wider(id_cols=c(week,lure),names_from=block, values_from=n,values_fill=0) %>%
+  pivot_longer(cols=A:E,names_to="block",values_to="n") %>%
+  filter(n != 1)
+```
+
+
+#### 4B
+
+> Correct the error.
+
+The following code adds an index with the row number to the wasp data.
+
+From the previous questions, we have located an error in the original `wasp` data.  Now we want to correct this error.  Explain what needs to be changed to fix the data set by replacing the XXX's in the text below the code chunk.
+
+(You may want to use `filter()` to find the row with the error.  See your responses to the previous question to determine which variables and values to use in the filter.)
+
+```{r index}
+wasps <- wasps %>%
+  mutate(index = 1:200) %>%
+  select(index,everything()) 
+
+wasps %>%
+  filter(week==2 & lure=="Control") %>% select(index, week, block, position, lure)
+```
+
+The data in row **160** is wrong.
+To fix it, change the following (edit as needed, not all variable below need to change).
+
+- block from **E** to **D**
+- position from **6** to **2**
+
+
+
+
+
+
+## Section B: stringr
+
+#### Create Data Frames
+
+Let's make some data frames that also have an index variable which is the row number. These will be used in the questions below.
+
+```{r make-data}
+df_words = tibble(
+  index = seq_along(stringr::words),
+  words = stringr::words
+)
+
+df_colors = tibble(
+  index = seq_along(colors()),
+  colors = colors()
+)
+```
+
+
+### 5
+
+The R command `colors()` returns an array with all of the color names that R knows about, which was how the `df_colors` data frame was created. Find all colors that contain the pattern "orange" or "yellow".
+
+- Print out a data frame that displays the number of colors (that contain the pattern "orange") and the first and last of these colors alphabetically.
+
+```{r}
+df_colors %>% filter(str_detect(colors(), "orange|yellow"))
+
+orange <- df_colors %>% filter(str_detect(colors, "orange")) %>% arrange(colors)
+
+orange %>% summarise(count_of_orange=n(), first=min(colors), last=max(colors)) 
+
+```
+
+
+
+### 6
+
+How many words in `df_words` begin with each letter? Do not distinguish between lower case and capital letters.
+
+- Make a bar graph that displays these counts (bonus: if you have time, can you figure out how to order the bars from tallest to shortest? The `reorder()` function may be useful here)
+- Be sure to label the axes and add a descriptive title.
+- Repeat for the last letter of each word.
+
+*Hint: use `mutate()` and `str_sub()` to create new columns with the first and last letter of each word and then make the graphs. Use either `str_to_lower()` or `str_to_upper()` before counting.*
+
+
+```{r}
+begins_with <- df_words %>% mutate(first_letter=str_to_lower(str_sub(words, 1, 1))) %>% group_by(first_letter) %>% 
+  summarise(count=n())
+
+begins_with
+
+ggplot(data=begins_with, mapping = aes(x=reorder(first_letter, -count))) +
+  geom_col(mapping=aes(y=count)) +
+  xlab("First Letter") +
+  ylab("Count") +
+  ggtitle("Frequency of the first letter in words")
+
+ends_with <- df_words %>% mutate(last_letter=str_to_lower(str_sub(words, -1, -1))) %>% group_by(last_letter) %>% 
+  summarise(count=n())
+
+ends_with
+
+ggplot(data=ends_with, mapping = aes(x=reorder(last_letter, -count))) +
+  geom_col(mapping=aes(y=count)) +
+  xlab("Last Letter") +
+  ylab("Count") +
+  ggtitle("Frequency of the last letter in words")
+```
+
+
+
+### 7
+
+Find all words in `df_words` that begin with the most frequent first letter and end with the most frequent last letter.
+
+- Print out a data frame that displays the number of such words and the first and last word in alphabetical order.
+
+```{r}
+
+df_words %>% filter(str_to_lower(str_sub(words, -1, -1))=="e" & str_to_lower(str_sub(words, 1, 1))=="s") %>%
+  summarise(num_words=n(), first=min(words), last=max(words))
+
+```
+
+
+
+### 8
+
+Find all colors in `df_colors()` that (i) do not contain digits and (ii) do not begin with the letter "s". How many such colors are there? Print them out.
+
+```{r}
+tableA <- df_colors %>% filter(str_to_lower(str_sub(colors, 1, 1))!="s" & !str_detect(colors, "[:digit:]"))
+
+length(tableA$colors)
+
+tableA
+```
+

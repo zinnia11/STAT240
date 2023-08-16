@@ -1,0 +1,175 @@
+---
+title: "Homework 6"
+author: "Zinnia Nie"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, fig.height = 3)
+library(tidyverse)
+source("../../scripts/ggprob.R")
+```
+
+
+<br/>
+
+### 1
+
+For this question,
+
+- Read in the same `chimpanzee.csv` data file we used for lecture/discussion.
+- Make an assumption that there are universal $p_{\text{partner}}$ and $p_{\text{no partner}}$ parameters representing the probability ANY chimpanzee would make a prosocial choice in a single trial with or without a partner.
+- Assume that all trials are independent.
+
+```{r}
+chimpanzee = read_csv("../../data/chimpanzee.csv")
+```
+
+Now, suppose we are interested in estimating the *difference* in sample proportions rather than just the individual population proportions. Confidence intervals can be defined for this purpose.
+
+#### 1A
+
+Using the Wald estimates, construct a ***90% confidence*** interval for the difference in the population proportions $p_{\text{partner}} - p_{\text{no partner}}$. (Note: you this proportion is treater as universal for all chimps, summarize your data across ALL chimps to get these estimates.)
+
+```{r}
+chimpanzee %>% mutate(partner_yn = ifelse(str_detect(partner, "none"), "No Partner", "Partner")) %>% 
+  group_by(partner_yn) %>% 
+  summarise(social_total=sum(prosocial), selfish_total=sum(selfish), n = social_total+selfish_total, social_p=social_total/n)
+
+p = 0.5885246 - 0.4611111
+se = sqrt(0.5885246*(1-0.5885246)/610 + 0.4611111*(1-0.4611111)/180)
+z = qnorm(0.95)
+me = z * se
+ci = p + c(-1,1)*me
+ci
+```
+
+90% confidence interval: **[0.05806627, 0.19676073]**
+
+#### 1B
+
+Interpret the estimated confidence interval in context.
+
+> We are 90% confident that the proportion of social choices made by chimpanzees with a partner is between 0.05806627 and 0.19676073 higher than the proportion of social choices made by chimpanzees without a partner. 
+
+<br/>
+
+### 2-4
+
+For the next several questions, we will be using the Boston Marathon data set again. The following code chunk reads in the *TIM.txt* data file (you may need to adjust the path to the data), and makes the following modifications to the data frame.
+
+The following variables are renamed:
+  - `bib` = `BibNum` and changed to a character type
+  - `year` = `Year`
+  - `age` = `Age`
+  - `gender` = `Gender1F2M`, change 1 to F and 2 to M
+
+These variables are removed:  `StartHr`, `StartMin`, `HalfMar`, `Age2014`
+
+Also, the data set is filtered to only include the years 2011 and 2012 (i.e., observations from 2013 are removed).
+
+```{r}
+tim = read_table("../../data/TIM.txt", guess_max = 20000) %>%
+  rename(bib = BibNum,
+         year = Year,
+         age = Age,
+         gender = Gender1F2M) %>%
+  mutate(bib = as.character(bib),
+         gender = case_when(
+           gender == 1 ~ "F",
+           gender == 2 ~ "M"
+         )) %>%
+  select(-c(StartHr,StartMin,HalfMar, "Age2014")) %>%
+  filter(year != 2013)
+```
+
+
+
+### 2
+
+- Create a new variable called `final` that gives the total time each runner took to run the marathon.  This will involve summing the spit times; the split times are provided in 5 KM intervals starting with `K0-5` through `K35-40`, and the final interval, `K40-Fin`, which is 2.2 KM.
+- Add a variable `speed` that has two possibles values,"Fast" or "Slow", depending on if the runner finished the marathon in under 3.5 hours or greater than or equal to 3.5 hours, respectively.
+- Print out a table that lists the total number of runners by gender and speed.  There should be one row for Female and Fast, Female and Slow, Male and Fast, and Male and Slow.
+
+```{r}
+speed <- tim %>% mutate(final = rowSums(across(starts_with("K")))) %>% 
+  mutate(speed = ifelse(final>=210, "Slow", "Fast"))
+
+speed %>% group_by(gender, speed) %>% summarise(total = n())
+```
+
+
+
+### 3
+
+- Display a plot that has a point of `size=2` at the sample mean of the final time for each of the four combinations of `gender` and `speed`.
+- Facet the graphic into two plots based on the category of `speed` ("Fast" or "Slow").
+- Add a blue (vertical) line segment to visualize a ***90% confidence interval*** for the mean final time for each gender and speed category. The lines should extend vertically from the lower bound to the upper bound of the confidence interval, and the point estimate from the previous step will be in the middle of the interval.
+-  Label axes appropriately and add an informative title to the plot.
+
+Hint: Your final plot should have four vertical segments for the confidence intervals, a point in the center of each vertical line, and a horizontal dashed line.
+
+```{r}
+data <- speed %>% group_by(gender, speed) %>% summarise(n = n(), mean = sum(final)/n, se = sd(final)/sqrt(n), lower_conf = mean-qnorm(1 - (1 - 0.90)/2)*se, upper_conf = mean+qnorm(1 - (1 - 0.90)/2)*se)
+
+data
+
+ggplot(data = data, mapping=aes(x=gender, y=mean)) +
+  geom_point(size=2) + 
+  geom_segment(x = data$gender, y = data$lower_conf, xend = data$gender, yend = data$upper_conf, color = "blue") + 
+  facet_wrap(~speed, scales="free_y") +
+  xlab("Gender") +
+  ylab("Average time (minutes)") +
+  ggtitle("Average time to complete the Boston Marathon", subtitle = "With 90% confidence intervals")
+```
+
+
+
+### 4
+
+- Consider only the runners with `speed` = "Slow".
+- Assume that the final time for each runner is independent.
+- Test the hypothesis that $\mu_F = \mu_M$ versus the two-sided alternative, where $\mu_F$ is the average final time for ("Slow") Female runners and $\mu_M$ is the average final time for ("Slow") Male runners.
+
+
+#### 4A
+
+What is the value of the observed test statistic?
+
+```{r}
+speed %>% filter(str_detect(speed, "Slow")) %>% group_by(gender, speed) %>% summarise(n=n(), mean = mean(final), sd = sd(final))
+
+(247.6642-247.0605) / sqrt(30.81854^2/16917 + 32.74501^2/14848)
+```
+
+> The test statistic is $1.685039$.
+
+#### 4B
+
+What is the distribution of the test statistic assuming the null hypothesis is true? State the name of the distribution and the values of its parameter(s).
+
+```{r}
+t.test(x=speed %>% filter(str_detect(speed, "Slow"), str_detect(gender, "F")) %>% select(final), y=speed %>% filter(str_detect(speed, "Slow"), str_detect(gender, "M")) %>% select(final))
+```
+
+> The distribution of the test statistic likely follows the **t distribution**, since we do not know the population standard deviation, thus must use the sample standard deviation. However, the smaple size is also very large, much greater than 30, so the t distribution would likely be very similar to the normal distribution. 
+
+> Parameters: there is one one parameter, the degrees of freedom (df), which is equal to **30648** in this situation.
+
+#### 4C
+
+What is your computed p-value?
+
+```{r}
+pvalue = 2*pt(-abs(1.685039), 30648)
+pvalue
+```
+
+> P value = **0.09199123**
+
+#### 4D
+
+Interpret the result of the hypothesis test in context.
+
+> There is not enough evidence to show that there is a difference in the mean finish time of slow (>3.5 hrs) female runners in the Boston marathon and the mean finish time of slow male runners in the Boston marathon at the 95% level (p value > 0.05, two-sided t-test, unequal variances). 
+

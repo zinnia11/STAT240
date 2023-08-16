@@ -1,0 +1,163 @@
+---
+title: "STAT 240 Discussion 4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(tidyverse)
+source("../../scripts/ggprob.R")
+```
+
+## Group 311:1 
+
+## Members Present
+
+Abigail Gandrud,
+Alexandra White,
+Akshay Joshi,
+**Zinnia Nie**
+
+## Members Absent
+
+N/A
+
+## Questions
+
+
+### 1
+
+For each scenario, explain why the random variable does *not* have a binomial distribution.
+
+1. A bucket contains 10 colored tokens with five that are red and five that are blue. Four tokens are drawn at random from the bucket one at a time, but without replacing the tokens drawn. $X_1$ is the number of red tokens selected.
+
+> The trials are not independent due to not replacing the tokens. 
+
+2. A fair coin is tossed repeatedly until the tenth head is tossed. $X_2$ is the number of tails tossed prior to the tenth head.
+
+> There is not a fixed number of trials. 
+
+3. Four buckets each contain a total of five tokens each, some red and some blue. The number of red tokens in the buckets are 1, 2, 3, and 4 with blue tokens making up the remainder. One token is drawn at random from each bucket. $X_3$ is the total number of red tokens drawn.
+
+> There is not an equal probability of success and failure for each trial.
+
+### 2
+
+Let $X \sim \operatorname{Binomial}(25,0.4)$.
+
+#### A
+
+Calculate and report the mean $\mu=\mathrm{E}(X)$ and the standard deviation $\sigma=\sqrt{\operatorname{Var}(X)}$
+
+```{r}
+# insert code below
+25 * 0.4 # mean
+sqrt(25*0.4*(1-0.4)) # sd
+```
+
+Mean: **10**
+
+Standard Deviation: **2.44949**
+
+#### B
+
+Calculate $\text{P}(X \geq 14)$
+
+```{r}
+# insert code below
+pbinom(14, 25, 0.4, lower.tail=FALSE)
+```
+
+$\text{P}(X \geq 14)$ = **0.03439152**
+
+#### C
+
+Create a graph of the $\operatorname{Binomial}(25,0.4)$ distribution. Color the segments for $x=14,15,...,25$ red and use gray for the rest. Plot using `theme_minimal()`.
+
+
+(HINT: make sure you download the `ggprob.R` file available on the discussion page and put it in a folder called `scripts` which is placed in your main course folder (i.e. the `scripts` folder should be in the same folder as your `data` folder). This file has some functions written by Bret and Jessi that you can use to easily make these plots. Start your code with `gbinom(n, p)` where `n` and `p` are the size and probability of each trial. You can also add arguments `a=` and `b=` to set the drawing limits on the horizontal axis. Then, you can color sections of this by adding additional layers of `+ geom_binom_density(...)` with the same `n` and `p`, but with different `a` and `b` arguments and with an additional `color=` argument. This will allow you to draw a subset of the distribution with a different color. Repeat this for the other color as well.)
+
+```{r}
+# insert code below
+gbinom(25, 0.4, color="gray") +
+  geom_binom_density(25, 0.4, a=14, b=25, color="red") +
+  theme_minimal()
+```
+
+
+
+### 3
+
+#### A
+
+Create a data frame with columns `n`, `p`, `x`, `mu`, and `prob` where:
+
+- `n` varies from 2 to 100 by twos (so each `n` value is even);
+- `p` equals 0.5;
+- `x` is $n/2$;
+- `mu` is the mean of the distribution;
+- `prob` is $P(X = x)$
+
+Show the first few rows using `head()`.
+
+```{r}
+# insert code below
+data <- data.frame(n=seq(2, 100, 2), p=0.5)
+data$x <- data$n/2
+data$mu <- data$n*data$p
+data$prob <- dbinom(data$x, data$n, data$p)
+
+head(data)
+```
+
+
+#### B
+
+What is the relationship between `x` and `mu`?
+
+> They are equivalent.
+
+
+#### C
+
+Make a line graph of `prob` versus `n`.
+
+```{r}
+# insert code below
+ggplot(data, mapping=aes(x=n, y=prob)) +
+  geom_line() +
+  ggtitle("Number of trials vs. probability of getting the mean number of successes")
+```
+
+
+#### D
+
+Describe the pattern: how does the probability that a random variable is equal to the mean (when the mean is a possible value) change as $n$ increases?
+
+> As n increases, the probability that the random variable is equal to the mean decreases at a decreasing rate. The correlation is not linear. 
+
+
+
+### 4
+
+Draw graphs of the binomial distributions for $n=500$ and $p = 0.5$ and $p = 0.005$, scaled so that the x axis is restricted to where the probabilities are relatively large (one graph for each of the two $p$'s). Overlay each plot with a red normal density with a mean and standard deviation that matche the mean and standard deviation of the corresponding binomial distribution (i.e. compute what the mean and standard deviation of each binomial variable is, then draw a normal on top with those values).
+
+(HINT: If you have `ggprob.R` script downloaded and loaded in, start with `gbinom(n,p)` where `n` and `p` are the size and probability, then add `scale=TRUE` in as a third argument (this allows the function to scale to an appropriate range automatically). Then, add the layer `+ geom_norm_density(m,s)` where `m` and `s` are the mean and standard deviations you have computed. You can also add in the argument `color=` here to set the color of this curve.)
+
+Compare the skewness of the distributions. Comment on how this might help explain the differences in the right tail probabilities from Problem 3.
+
+```{r}
+# insert code below
+gbinom(500, 0.5, scale=TRUE) + 
+  geom_norm_density(500*0.5, sqrt(500*0.5*0.5), color="red")
+
+gbinom(500, 0.005, scale=TRUE) + 
+  geom_norm_density(500*0.005, sqrt(500*0.005*(1-0.005)), color="red")
+```
+
+For probability of 0.5, there is no visible skew from the normal distribution. It looks like a normal distribution. 
+
+For probability of 0.005, there is right skew in the binomial plot compared to the normal distribution. 
+
+
+

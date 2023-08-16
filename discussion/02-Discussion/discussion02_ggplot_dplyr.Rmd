@@ -1,0 +1,276 @@
+---
+title: "STAT 240 Discussion 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(tidyverse)
+```
+
+## Group Name 311:1
+
+## Members Present
+
+Abigail Gandrud,
+Alexandra White,
+Akshay Joshi,
+**Zinnia Nie**
+
+## Members Absent
+
+N/a
+
+
+
+# Section A: ggplot
+
+
+## Exoplanet Data
+
+We will be working with the default data set on exoplanets (planets orbiting stars outside our Solar System).
+The data is described in the [Exoplanet Chapter of the Course Notes](https://bookdown.org/bret_larget/stat-240-case-studies/exoplanets.html).
+We will only be exploring the mass, radius, and discovery method variables.
+
+```{r read-data}
+## Read in the csv file
+## The first 100 lines of the file contain comments: we skip them.
+## There is one row per exoplanet 
+## Select some variables that we will work with and rename them
+## Drop rows with missing data
+
+planets = read_csv("../../data/exoplanets_default_2021-06-15.csv", skip = 100) %>%
+  select(pl_name, discoverymethod, pl_rade, pl_bmasse, disc_year) %>%
+  rename(planet = pl_name,
+         method = discoverymethod,
+         radius = pl_rade,
+         mass = pl_bmasse,
+         year = disc_year) %>% 
+  drop_na()
+```
+
+The variables we will be working with are defined below. See the course notes for more details.
+
+`planet` = Planet Name  
+`method` =  Method by which the planet was first identified  
+`radius` = Planet Radius (units: Earth Radius)  
+`mass` = Approximate or Minimum Planet Mass (units: Earth Mass)  
+
+
+### Question 1
+
+> Make a scatter plot with `radius` (the estimate of the planet radius) on the x-axis and `mass` (the estimate of the planet mass) on the vertical axis. Also use the `color` aesthetic for `method` (discovery method).
+The `scale_y_log10()` and `scale_y_log10()` are added to change the axis values to a `log10()` scale.  
+
+```{r question-1}
+## COMPLETE CODE TO MAKE THIS PLOT
+ggplot(planets, mapping = aes(x=radius,y=mass)) +
+  geom_point(aes(color=method)) +
+  scale_y_log10() +
+  scale_x_log10() +
+  xlab("Radius") +
+  ylab("Mass (Earth Mass)") +
+  ggtitle("Exoplanets Mass vs. Discovery Year",
+          subtitle="Using NASA Explanet Archive Data")
+
+```
+
+
+
+### Question 2
+
+- Which discovery method was used to detect the most exoplanets in our `planet` data frame?  
+
+- What general pattern do you notice between planet mass and radius?  
+
+- What is the estimated radius (approximately) of the most massive planet included on the plot?
+
+#### Response
+
+**Transit** is used to detect the most exoplanets.
+
+There is a **positive** correlation between planet mass and radius. As planet mass increases, so does the radius.
+
+The radius is approximately **13** Earth radius.
+
+
+
+### Question 3
+
+> Another way to display differences by discovery method is to separate the plot into multiple panels (or facets) and plot different subsets of the data in each.
+> We are going to look at planet mass versus discovery year.
+> Add a comment to say what the code on the next line does where indicated.
+
+
+```{r question-4}
+ggplot(planets, aes(x=year,y=mass)) +
+  geom_point() +
+  ## ADD A COMMENT SAYING WHAT THE NEXT LINE DOES
+  # Response: This code plots a linear trend line on all the plots and includes the standard error area.
+  geom_smooth(method="lm") +
+  ## ADD A COMMENT SAYING WHAT THE NEXT LINE DOES
+  # Response: This line creates multiple plots based on the method variable. There is one plot per method.
+  facet_wrap(~method) +
+  xlab("Discovery Year") +
+  ylab("Mass (Earth Mass)") +
+  ggtitle("Exoplanets Mass vs. Discovery Year",
+          subtitle="Using NASA Explanet Archive Data")
+```
+
+
+
+# Section B: dplyr
+
+
+### Question 4
+
+The code below modifies the exoplanet data table, `planets`.  Review the code and then answer the question below the code chunk.  Some questions will require additional code to answer them.
+
+```{r}
+## Read in the csv files for all planets
+## There is one row for each exoplanet publication
+## Note that the file begins with a number of comment lines which we skip
+
+planets = read_csv("../../data/exoplanets_default_2021-06-15.csv",
+                   skip = 100) %>% 
+  select(pl_name, hostname, discoverymethod, disc_year, sy_pnum, pl_rade, pl_bmasse) %>%
+  rename(planet = pl_name,
+         star = hostname,
+         method = discoverymethod,
+         year = disc_year,
+         number = sy_pnum,
+         radius = pl_rade,
+         mass = pl_bmasse)
+
+### Add code here as needed to address the questions.
+nrow(planets)
+planets %>% filter(year==2000|year==2005|year==2010|year==2015) %>% nrow()
+```
+
+>  (a) What does the `skip = 100` argument to `read_csv()` do? Why is it necessary?
+
+It doesn't read in the first 100 rows of the csv file. This is necessary because the first rows might not be data, like comments about the file, which would mess with the creation of a data frame.
+
+>  (b)  What does the `rename()` function do to the data frame?
+
+It changes the column names of the data frame. The format is "new_name = old_name".
+
+>  (c)  After running the code chunk, how many observations are in the data set?
+
+**4401** 
+
+>  (d) What are the combined number of exoplanets discovered in each of the years 2000, 2005, 2010, and 2015?
+
+**306**
+
+**For the rest of the document, use this `planets` data !**
+
+
+
+### Question 5
+
+> What are the names of the stars with the most discovered exoplanets orbiting it?  
+
+- Create a data frame that lists the top five stars with the most discovered exoplanets arranged from the most to the least; include the variables `star` and `number` only in your answer.   (Because of ties, there may be more than five stars listed.) 
+- In addition to other commands, you will want to use `slice_max()`.    
+- After creating the noted data frame, respond to the question below the chunk.  
+
+You may notice something strange after completing the instructions above:  the same star's name is repeated a number of times!  What's going on here?  Let's say there are 4 detected planets orbiting the same star.  Since each row of our data frame has a planet, the same host star may be listed for each of those 4 rows.  To address this and only display the star's name once, use the `distinct()` command before the `slice_max()`.
+
+```{r}
+## Add your code here
+top_five <- planets %>% 
+  select(star, number) %>%
+  distinct()
+
+top_five <- slice_max(top_five, number, n=5)
+
+top_five
+
+top_five[1,1]
+```
+
+> What is the name of the star with the most detected exoplanets?
+
+**KOI-351**
+
+
+
+### Question 6
+
+> Make a bar plot indicating the number of exoplanets discovered from the various system sizes.  The size of the exoplanet system is the variable `number`; this is the number of discovered exoplanets orbiting the same host star.  
+
+- You can use `geom_bar()`; this is reasonable here because the sizes of the systems are integers.  
+- Fill the bars with colors according to the method of detection.  
+- Remove exoplanets that were discovered using the "Imaging" or "Orbital Brightness Modulation" methods.  
+- For the `position` option in `geom_bar()`, set this equal to `position_dodge2(preserve = "single")`.  
+- Be sure to add meaningful labels to the x-axis (e.g., "Number of Exoplanets Discovered in the System") and y-axis (e.g., "Number of Exoplanets").  
+- Answer the question displayed below the chunk.
+
+Notice that this figure is counting the number of exoplanets in systems of different sizes.  This means that the vertical axis is representing the number of planets within each of the various  system sizes -- *not* the number of systems.  You could create a similar figure first by counting the number of systems of the different sizes.  However, planets within the same system may have been detected using different methods so the bar coloring would need to be adjusted.
+
+```{r}
+## Add your code here
+ggplot(planets %>% filter(method != "Imaging" & method != "Orbital Brightness Modulation") , mapping = aes(x=number)) +
+  geom_bar(aes(fill=method), position=position_dodge2(preserve = "single")) +
+  xlab("Number of Exoplanets Discovered in the System") +
+  ylab("Number of Exoplanets") +
+  ggtitle("Number of exoplanets discovered from various system sizes",
+          subtitle="Using NASA Explanet Archive Data")
+
+```
+
+>  What did `position = position_dodge2(preserve = "single")` do to the bar plot?  How does it compare to using `position = "dodge"`? (Try out both and see how they compare.)
+
+`position = position_dodge2(preserve = "single")` made the bars of the plot side by side rather than stacked and made the width of each bar equal. On the other hand, `position = "dodge"` stretches the side by side bars so that they fill the entire space given to them. 
+
+
+
+### Question 7 (Ungraded, but here for extra practice if you want more)
+
+> The Transit method of detection allows for the estimation of a planet radius and the Radial Velocity method allows for the estimation of a planet's mass.  
+
+-  Create a data frame that counts the number of missing values for the variables  `radius` and `mass` for the methods `Transit` and `Radial Velocity`.  
+-  Answer the question below the chunk.
+
+```{r}
+## Add your code here
+count_na = function(x){
+  return( sum(is.na(x)) )
+}
+
+missing = planets %>% 
+  filter(method == "Transit" | method == "Radial Velocity") %>% 
+  summarize(radius_na = count_na(radius),
+            mass_na = count_na(mass))
+
+missing
+
+nrow(planets %>% filter(method == "Transit"))
+nrow(planets %>% filter(method == "Radial Velocity"))
+```
+
+> Are these numbers consistent with the Transit method allowing for the estimation of planet radius and the Radial Velocity method allowing for the estimation of a planet's mass?  Explain.
+
+The numbers are consistent for the Radial Velocity method estimating a planet's mass. There are 850 planets that are measured with the Radial Velocity method, and there are 851 missing radius values, indicating that using the Raidal Velocity method, the planet radius is not recorded. However, the numbers for Transit method and missing mass do not match up. 
+
+
+### Question 8 (Ungraded, but here for extra practice if you want more)
+
+> Calculate the minimum, 25th percentile, mean, median, and maximum value of radius over all exoplanets that were discovered using the method `Transit` in the data set.  
+
+-  You will need to drop the missing values (`drop_na()`) before calculating the summary statistics.  When dropping missing values, you should first select only the variables you plan to use in the analysis.  This is because the `drop_na()` will drop rows if *any* of the values are missing.  For this question, you only need to consider method (to get the Transit method) and radius so you only need to remove missing values from those variables.   
+- To get the pth percentile, consider using `quantile(radius, p)`.  For example, to get the 25th percentile, you can use `quantile(radius, .25)`.  
+-  Answer the question below the chunk.
+
+```{r}
+## Add your code here
+planets %>% filter(method == "Transit") %>% select(radius) %>% drop_na() %>% 
+  summarise(min = min(radius), percent = quantile(radius, .25), mean = mean(radius), median = median(radius), max = max(radius))
+```
+
+> Do most of these planets have an estimated radius less than, greater than, or about the same as the radius of the Earth?  (You will need to recall the units of radius:  they are in Earth radius)
+
+Generally the radius is greater than the radius of the Earth. Both of the measures of center, mean and median, are greater than 1, meaning about half the planets are larger than 1 Earth radius. Not only that, the 25th percentile is also greater than 1, so 75% of the planets have a larger radius than Earth. 
+
+

@@ -1,0 +1,181 @@
+---
+title: "STAT 240 Discussion 10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(lubridate)
+source("../../scripts/ggprob.R")
+```
+
+## Group 311:1
+
+## Members Present
+
+Abigail Gandrud,
+Alexandra White,
+Akshay Joshi,
+**Zinnia Nie**
+
+## Members Absent
+
+N/a
+
+## Data
+
+The following code reads in the official Madison weather data
+and calculates the average winter temperature (November through February) for each winter and graphs the data and a fitted linear model.
+
+The official weather record in this data set extends from January 1, 1869 through December 31, 2020.
+The complete winters begin with 1869-1870 in November and extend through the winter of 2019-2020 as this data set does not include the most recent winter.
+
+```{r read-data}
+## Read and transform the Madison weather data
+mw_orig = read_csv("../../data/madison-weather-official-2020.csv")
+
+mw = mw_orig %>% 
+  mutate(year = year(date),
+         month = month(date, label = TRUE),
+         .after = date) %>% 
+  mutate(year1 = case_when(
+    month > "Jun" ~ year,
+    month < "Jul" ~ year - 1),
+    year2 = year1 + 1,
+    winter = str_c(year1, "-", year2),
+    .before = year) 
+
+## add the winter variables and filter
+mw_winter = mw %>%
+  filter(month %in% c("Nov", "Dec", "Jan", "Feb")) %>%
+  select(-prcp, -contains("snow")) %>% 
+  drop_na() %>% 
+  filter(winter >= "1869-1870" & winter <= "2019-2020") %>% 
+  group_by(winter, year1) %>%
+  summarize(tavg = mean(tavg))
+```
+
+## Setup
+
+### Scatter plot and regression line
+
+```{r plot-data}
+ggplot(mw_winter, aes(x = year1, y = tavg)) +
+  geom_point() +
+  geom_smooth(method = "lm", se=FALSE) +
+  xlab("Year (first year of the winter)") +
+  ylab("Average Winter Temperature") +
+  ggtitle("Madison, WI Average Winter Temperature",
+          subtitle = "Winter defined as Nov. through Feb.") +
+  theme_bw()
+```
+
+### Regression Model
+
+The next block of code fits a linear model and then adds the residuals and predicted values as new columns for plotting purposes later on.
+
+```{r fit-regression-model}
+## fit the regression model
+winter_lm = lm(tavg ~ year1, data = mw_winter)
+
+## get summary table of coefficients and inference values
+summary(winter_lm)
+
+## augment data frame with  residuals and fitted values for plotting later
+mw_winter_aug = mw_winter %>% mutate()
+mw_winter_aug$.resid = resid(winter_lm)
+mw_winter_aug$.pred = fitted(winter_lm)
+
+head(mw_winter_aug)
+```
+
+<br/><br/>
+
+## Problems
+
+
+### 1 
+
+Using the results of the linear model fit above, write out the estimated linear model by replacing the (a) and (b) with the estimated coefficients; y_hat represents the estimated average winter temperature in Madison for year x.  What is the interpretation of the estimated slope?
+
+y_hat = (-13.20748) + (0.01934) * x
+
+For every additional year, there is a 0.01934 Fahrenheit degree increase in average winter temperature in Madison.
+
+
+
+### 2
+
+### 2A
+
+Calculate the end points of a 95% confidence interval for the slope of the regressions model.
+Note that we have data for this entire period of time,
+so a confidence interval here represents the slope in a linear unseen climate trend whereas the data is affected by the randomness of weather.
+
+Round the margin of error to two significant digits and then round the estimated slope to the same accuracy.
+The margin of error is the product of a quantile from a t distribution with an appropriate number of degrees of freedom.
+
+```{r}
+signif(0.01934 + c(-1,1) * 0.00668 * qt(0.975, 149), 2)
+signif(0.01934, 2)
+```
+
+Confidence Interval: [0.0061, 0.0330]
+
+Estimated Slope: 0.019
+
+
+### 2B
+
+Interpret this confidence interval in context, following examples from lecture.
+
+We are 95% confident that for every year, there is between a 0.0061 and 0.0330 Fahrenheit degree increase in average winter temperature in Madison.  
+
+
+### 3
+
+Is there strong evidence that the unknown slope of the regression line of average winter temperature in Madison due to a changing climate is different from zero?
+
+### 3A
+
+Report a t-test statistic and p-value from the model summary output.
+
+T-test stat: **2.895**
+
+p-value: **0.00436**
+
+
+### 3B
+
+Verify the calculation of the p-value using the `pt()` function.
+
+```{r}
+pt(2.895, df=149, lower.tail=FALSE)*2
+```
+
+
+### 3C
+
+Interpret this hypothesis test in the context of the question.
+
+There is strong evidence to suggest that the slope of the regression line of average winter temperature in Madison is different from 0 (p-value < 0.05, two-sided t-test). 
+
+
+### 4
+
+Make a density plot of the residuals from the model. Calculate the mean and standard deviation of the residuals. Overlay a normal density with these values for the mean and standard deviation.
+
+Does it appear that a normal distribution is a reasonable approximation of the distribution of variation of points around the regression line?
+
+```{r}
+ggplot(data=mw_winter_aug, mapping=aes(x=.resid)) +
+  geom_density() +
+  geom_norm_density(mean(mw_winter_aug$.resid), sd(mw_winter_aug$.resid)) +
+  xlab("Residual") +
+  ylab("Density") +
+  ggtitle("Winter temperature in Madison relationship", subtitle = "Residual distributions in black, normal density in blue")
+
+```
+
+The density plot of residuals has a similar shape to the normal density, as there is one peak near the center of the distribution, however, the residuals density deviates from the normal density in multiple places, so the normal density might not be the most accurate approximation of the distribution of points around the regression line. It is likely a reasonable one though.  

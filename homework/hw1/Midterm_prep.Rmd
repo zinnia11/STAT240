@@ -1,0 +1,210 @@
+---
+title: "Midterm_prep"
+output: html_document
+date: '2023-07-13'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, fig.height = 3)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+
+```{r}
+mid <- data.frame(pass = c("BK6666.66666+", "O73H89ajhflkah8+", "Jjjjjj56jjjJjk_", "B", "89"))
+mid %>% filter(str_length(pass) >= 10, str_detect(pass, "^[:upper:]{1}[^A-Z]"), str_detect(pass, "[:digit:]{2,}"), str_detect(pass, "[\\.,+=-_]$"))
+
+x <- data.frame(X=c(1, 2, 3, 4), Y=c(45, 46, 47, 48))
+y <- data.frame(X=c(1, 2, 3, 4, 5, 6), Y=c(45, 46, 47, 48, 50, 60))
+#inner_join(x, y)
+```
+
+
+## ggplot
+
+```{r}
+ggplot(data = df, mapping = aes(x, y, size, color, group)) +
+  geom_histogram(aes(x=duration), 
+                 fill="hotpink",  # bar interior
+                 color="black",   # bar outline
+                 binwidth=7,      # width of the bars
+                 boundary=0) +    # boundaries of the bars 
+  geom_density(aes(x=duration), # density plot is a smooted histogram
+               fill="hotpink",
+               color="black") + 
+  geom_boxplot(aes(x=as.character(decade),y=duration), # as.character() means treat the column as a string
+               fill="red",
+               color="blue") +
+  geom_violin(aes(x=as.character(decade),y=duration), # density plot for boxplots
+              fill="red",
+              color="black") +
+  geom_point() + # scatterplot
+  geom_line() + # lineplot, connect all dots
+  geom_smooth(method = "lm", se=FALSE) + # trend line, "lm" means a linear line, se is standard error areas
+  geom_hline(yintercept=0) + # horizontal line
+  geom_abline(intercept=0, slope=1) +
+  geom_bar(aes(fill=method), position=position_dodge2(preserve = "single")) +
+  geom_col(aes(fill=method)) +
+  
+  scale_y_log10() + # log10 scale
+  scale_x_log10() +
+  scale_y_continuous(trans='log10', breaks = seq(-21,42,by=7),
+                     labels = c("Nov 29","Dec 6","Dec 13","Dec 20",
+                                "Dec 27","Jan 3","Jan 10","Jan 17",
+                                "Jan 24","Jan 31")) +
+  facet_wrap(~column) + # create facets based on the column specified
+  
+  xlab() +
+  ylab() +
+  labs(color="") +
+  ggtitle()
+  
+```
+
+
+## dplyr
+
+```{r}
+mutate()    # adds new variables that are functions of existing variables
+select()    # picks variables based on their names
+filter()    # picks cases based on their values
+summarise() # reduces multiple values down to a single summary
+arrange()   # changes the ordering of the rows
+
+group_by(r) # the variable(s) we are interested in summarizing over
+slice_max(data, column, n=5) 
+slice_min(data, column, n=5)
+
+planets = read_csv("../../data/exoplanets_default_2021-06-15.csv", skip = 100) %>%
+  select(pl_name, discoverymethod, pl_rade, pl_bmasse, disc_year) %>%
+  rename(planet = pl_name,
+         method = discoverymethod,
+         radius = pl_rade,
+         mass = pl_bmasse,
+         year = disc_year) %>% 
+  drop_na()
+```
+
+## Manipylating cases
+
+```{r}
+filter()  # select rows by a condition
+slice()   # select rows by row number
+arrange() # order rows
+desc()    # used inside of arrange() to specify the order in descending order of a variable
+select()  # select variables
+          # positive to include; negative to exclude
+          # helper functions: starts_with() ends_with() contains() everything() 
+mutate()  # add or change one or more variables
+transmute() # add or change one or more variable, remove the rest()
+rename()  # change the name of a variable
+```
+
+## Grouping and Summarizing
+
+```{r}
+summarize() # compute a table of summaries
+# See the second page of the Cheatsheet for a large vocabulary of summarizing functions
+group_by()  # create groups; often used prior to summarize() with the effect that summaries are calculated by group()
+```
+
+## Combining Datasets
+
+```{r}
+bind_cols() # combine two data frames that have the same observations by binding together columns
+bind_rows() # combine two data frame that have the same variables by binding together rows
+left_join()
+right_join()
+inner_join()
+full_join() # functions that mutate one or both data frames to join them together
+
+# missing dates
+temp = tibble(
+  date = seq(ymd("2017-01-01"), ymd("2021-12-31"), 1)
+)
+
+temp %>% anti_join(data)
+```
+
+```{r}
+across()
+# select a number of columns with the first argument
+# provide a function (or more than one) as the second argument
+# apply the function(s) to each selected column
+# In the simplest case using across() within mutate(), the columns are replaced by their new values and retain the same names
+# We can also use across() within summarize() when we want to create a summary by applying the same function to a selection of columns without needing to list them each individually
+
+where() 
+# used inside of across() when we want to use base R functions that return TRUE or FALSE where we would otherwise use tidyverse functions.
+
+pmap_dbl() # will apply some function row-wise and return a numeric valued column of data
+# The first argument to pmap_dbl() is a data frame
+# As we are not piping into pmap_dbl() but instead call it within mutate(), we use the symbol . to refer to the data frame that was piped into mutate().
+```
+
+```{r}
+pivot_longer(cols=!zip, names_to = "sex", values_to = "bach_p") 
+            # list of columns to pivot, new col name, col name of values
+pivot_wider(id_cols=block, names_from=position, values_from=n, values_fill=0)
+            # columns to keep, new columns, column taking values, fill empty values with
+```
+
+
+# stringr
+
+```{r}
+str_detect(string, pattern)  # detect a pattern in a string
+str_count(string, pattern)   # count the number of times a string contains a pattern
+
+str_sub(string, start, end)  # extract a subset by position
+str_extract(string, pattern) # extract first match of pattern, NA if no match
+
+str_length(string)           # length of the string
+str_pad(string, width, side, pad = " ") # pad strings to a constant width
+
+str_sub(string, start, end) = replacement_string # replace a subset by position
+str_replace(string, pattern, replacement) # replace first match with replacement
+str_to_lower(string) # change all letters to lower case
+str_to_upper(string) # change all letters to upper case
+
+str_c(..., sep = "") # combine multiple strings into one
+str_split(string, pattern, n) # splits a string by the pattern
+```
+
+Regex:
+
+| — or, match exactly one of the possibilities: can separate more than two chocies
+[] — one of, match one of the characters between the brackets
+[^]— anything but, match anything not between [^ and ]
+ranges — examples: [a-d], [0-5], [a-zA-Z]
+() - keep as a group
+
+^ — the start of the string
+$ — the end of the string
+
+How often does the previous character/group need to appear?
+? — 0 or 1
+* — 0 or more
++ — 1 or more
+{n} — exactly n times
+{n,} — n or more
+{m,n} — form m to n times
+
+[:space:] — space, tab, newline
+[:blank:] — space and tab
+[:punct:] — a collection of punctuation characters
+[:symbol:] — a collection of symbols
+[:digit:] — a digit
+[:lower:] — same as [a-z], a lower-case letter
+[:upper:] — same as [A-Z], an upper-case letter
+[:alpha:] — same as [a-zA-Z], [:lower:]|[:upper]
+[:alnum:] — letter or number, [:alpha:]|[:digit:]
+[:graph:] — punctuation, symbols, digits, letters
+same as [:punct:]|[:symbol:]|[:alnum:]
+. — matches any single character except for a newline
+
+
+
+

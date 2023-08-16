@@ -1,0 +1,160 @@
+---
+title: "STAT 240 Discussion 6"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(tidyverse)
+library(lubridate)
+source("../../scripts/ggprob.R")
+```
+
+## Group 311:1
+
+## Members Present
+
+Abigail Gandrud,
+Alexandra White,
+Akshay Joshi,
+**Zinnia Nie**
+
+## Members Absent
+
+N/a
+
+## Questions
+
+
+### Data
+
+The following code reads in the Madison weather data and calculates the average July temperature for each year.
+Treat the years from 1869 to 1898 as *early Madison* and from 1991 to 2020 as *recent Madison*.
+
+```{r}
+## Read and transform the Madison weather data
+mw = read_csv("../../data/madison-weather-2020-clean-2.csv")
+
+mw_july = mw %>%
+  filter(month=="Jul") %>%
+  filter(year < 1899 | year > 1990) %>%
+  group_by(year) %>%
+  summarize(tavg = mean(tavg)) %>%
+  mutate(era = case_when(
+    year < 1900 ~ "early",
+    year > 1989 ~ "recent"))
+
+```
+
+### 1
+
+Calculate the mean and standard deviation of the average July temperature separately for early Madison and recent Madison.
+
+```{r}
+# insert code here
+
+summary <- mw_july %>% group_by(era) %>% summarise(mean = mean(tavg), sd = sd(tavg))
+
+summary
+
+```
+
+
+
+### 2
+
+Make a plot with separate density curves for the early and recent July average temperatures.
+
+```{r}
+# insert code here
+ggplot(data=mw_july, mapping=aes(x=tavg, group=era, color=era)) +
+  geom_density() +
+  xlab("Average Temp") +
+  ylab("Density") +
+  ggtitle("Average July temperature")
+```
+
+
+
+### 3
+
+Treat the 30 years in each time period as separate samples. Find 95% confidence intervals for the average July temperature in each time period. Compare results with the output of the `t.test()`.
+
+```{r}
+# insert code here
+z = qnorm(0.975)
+# early
+se_e = summary$sd[1]/sqrt(30)
+summary$mean[1] + c(-1,1)*z*se_e
+
+# recent
+se_e = summary$sd[2]/sqrt(30)
+summary$mean[2] + c(-1,1)*z*se_e
+
+t.test(mw_july %>% filter(str_detect(era, "early")) %>% select(tavg))
+t.test(mw_july %>% filter(str_detect(era, "recent")) %>% select(tavg))
+```
+
+The results are very similar, with the t test interval being slightly larger than the 95% confidence intervals we calculated by hand with a z value. 
+
+
+
+### 4
+
+Draw a graph of a t distribution with 29 degrees of freedom and with the middle 95% of the distribution shaded in.
+
+```{r}
+# insert code here
+gt(df = 29) +
+  geom_t_fill(df = 29, a=qt(0.975, 29, lower.tail = TRUE), b=qt(0.975, 29, lower.tail = FALSE)) +
+  ggtitle("T distribution with 29 df")
+```
+
+
+
+### 5
+
+Find a 95% confidence interval for the change (recent minus early) of average July temperatures in Madison. Do this first using R, then (optionally) verify by manual computation (note you can get the degrees of freedom from the R `t.test` output).
+
+```{r}
+# insert code here
+t.test(x = mw_july %>% filter(str_detect(era, "recent")) %>% select(tavg), y = mw_july %>% filter(str_detect(era, "early")) %>% select(tavg))
+```
+
+Confidence Interval = **(-2.0935447, 0.6354802)**
+
+
+### 6
+
+Test the hypothesis that the mean July temperature in Madison in the early era is equal to that in the recent era versus that alternative that they are different. Calculate the test statistic $t$ from the equations and verify it matches the result from `t.test()`. Write a conclusion in context to interpret the result of this hypothesis test.
+
+```{r}
+# insert code here
+t = ((summary$mean[2] - summary$mean[1])-0) / sqrt(summary$sd[2]^2/30 + summary$sd[1]^2/30)
+t
+
+t.test(x = mw_july %>% filter(str_detect(era, "recent")) %>% select(tavg), y = mw_july %>% filter(str_detect(era, "early")) %>% select(tavg))
+```
+
+T test statistic = **-1.0708**
+
+P-value = **0.2889**
+
+There is not strong evidence to suggest that the mean average temperature in July from the early era vs the recent era is different (p value > 0.05 in a two-sided test with unequal variances). 
+
+
+### 7
+
+Make a plot of the t distribution for the previous problem. Add a vertical line at the test statistic and shade in the two tail areas that correspond to the p-value.
+
+```{r}
+# insert code here
+gt(df = 54.733) +
+  geom_t_fill(df = 54.733, b=-1.070839) +
+  geom_t_fill(df = 54.733, a=1.070839) +
+  geom_vline(xintercept=-1.070839) +
+  xlab("t statistic") +
+  ggtitle("P-value visualization",
+          subtitle = "54.733 df, t = -1.070839")
+```
+
